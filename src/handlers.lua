@@ -4,6 +4,7 @@ reqLimit = 3
 
 httpd = require("http.server").new(host, port)
 log = require('log')
+digest = require('digest')
 
 function resolveHandler(req)
     log.info("resolve handler for method %s", req.method)
@@ -46,24 +47,27 @@ function errorResponse(req, status, message)
 end
 
 function handleRequestLimit(req, h)
-    local ip_addr = req.peer.host
-    log.info("agent %s", ip_addr)
+    local ip_addr = digest.md5(req.peer.host)
     local item = box.space.client:get{ip_addr}
+
+    box.begin()
     local currentTs = os.time()
     if item == nil then
         box.space.client:insert{ip_addr, currentTs, 1}
     else
         local times
-        if item.ts == currentTs then
-            if item.times + 1 > reqLimit then
+        if item[2] == currentTs then
+            if item[3] + 1 > reqLimit then
+                log.warn("request limit...")
                 return requestLimitError(req)
             end
-            times = item.times + 1
+            times = item[3] + 1
         else
             times = 1
         end
         box.space.client:put{ip_addr, currentTs, times}
     end
+    box.commit()
     return h(req)
 end
 
