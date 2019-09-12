@@ -1,10 +1,76 @@
-host = "localhost"
-port = 5051
-reqLimit = 3
+log = require('log')
+
+host = os.getenv('HOST') or "localhost"
+port = tonumber(os.getenv('PORT')) or 5051
+reqLimit = tonumber(os.getenv('REQLIMIT')) or 3
+
+log.info("start server on %s:%s (limit: %s)", host, port, reqLimit)
 
 httpd = require("http.server").new(host, port)
-log = require('log')
 digest = require('digest')
+
+-------------
+-- CRUD
+-------------
+
+-- create
+function postValue(req)
+    log.info("create")
+    local data = req:json()
+    log.debug("data: %s", data)
+    if data == nil or data.key == nil or data.value == nil then
+        log.warn("bad request...")
+        return badRequestError(req)
+    end
+    local item = box.space.kv:get{data.key} 
+    if item == nil then
+        item = box.space.kv:insert{data.key, data.value}
+        return req:render({json = item})
+    end
+    log.warn("conflict... %s", data.key)
+    return conflictError(req)
+end
+
+-- read
+function getValue(req)
+    local key = req:stash("id")
+    log.info("read - %s", key)
+    local item = box.space.kv:get{key}
+    if item == nil then
+        log.warn("not found... %s", key)
+        return notFoundError(req)
+    end
+    return req:render({json = item})
+end
+
+-- update
+function putValue(req)
+    local key = req:stash("id")
+    log.info("update - %s", key)
+    local data = req:json()
+    log.debug("data: %s", data)
+    if data == nil or data.value == nil then
+        log.warn("bad request...")
+        return badRequestError(req)
+    end
+    local item = box.space.kv:get{key} 
+    if item then
+        item = box.space.kv:put{key, data.value}
+        return req:render({json = item})
+    end
+    log.warn("not found...")
+    return notFoundError(req)
+end
+
+-- delete
+function deleteValue(req)
+    local key = req:stash("id")
+    log.info("delete - %s", key)
+    local item = box.space.kv:get{key}
+    if item then 
+        box.space.kv:delete{key}
+    end
+end
 
 -------------
 -- errors
