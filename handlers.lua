@@ -1,6 +1,6 @@
 log = require('log')
 
-host = os.getenv('HOST') or "localhost"
+host = os.getenv('HOST') or "0.0.0.0"
 port = tonumber(os.getenv('PORT')) or 5051
 reqLimit = tonumber(os.getenv('REQLIMIT')) or 3
 
