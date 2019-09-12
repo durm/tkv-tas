@@ -7,8 +7,10 @@ import uuid
 import time
 
 
-host = os.environ.get("HOST", "localhost")
-port = os.environ.get("POST", 5051)
+host = os.environ.get("HOST")
+assert host, "Provide server host via HOST env var"
+port = os.environ.get("PORT")
+assert port, "Provide server port via PORT env var"
 
 
 class KVAPITestCase(unittest.TestCase):
